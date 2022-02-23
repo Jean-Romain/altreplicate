@@ -85,6 +85,90 @@ struct compact_repetition
 
   // ALTVEC methods ------------------
 
+  static SEXP Serialized_state_int(SEXP x)
+  {
+    Rprintf("Calling serialize_state on a compact_repetition at %p\n", R_ExternalPtrAddr(x));
+
+    int val = Get(x).value;
+    int n = Get(x).size;
+    SEXP size = PROTECT(Rf_ScalarInteger(n));
+    SEXP value = PROTECT(Rf_ScalarInteger(val));
+    SEXP vec = PROTECT(Rf_allocVector(VECSXP, 2));
+    SET_VECTOR_ELT(vec, 0, value);
+    SET_VECTOR_ELT(vec, 1, size);
+    UNPROTECT(3);
+    return vec;
+  }
+
+  static SEXP Serialized_state_dbl(SEXP x)
+  {
+    Rprintf("Calling serialize_state on a compact_repetition at %p\n", R_ExternalPtrAddr(x));
+
+    double val = Get(x).value;
+    int n = Get(x).size;
+    SEXP size = PROTECT(Rf_ScalarInteger(n));
+    SEXP value = PROTECT(Rf_ScalarReal(val));
+    SEXP vec = PROTECT(Rf_allocVector(VECSXP, 2));
+    SET_VECTOR_ELT(vec, 0, value);
+    SET_VECTOR_ELT(vec, 1, size);
+    UNPROTECT(3);
+    return vec;
+  }
+
+  static SEXP Serialized_state_lgl(SEXP x)
+  {
+    Rprintf("Calling serialize_state on a compact_repetition at %p\n", R_ExternalPtrAddr(x));
+
+    double val = Get(x).value;
+    int n = Get(x).size;
+    SEXP size = PROTECT(Rf_ScalarInteger(n));
+    SEXP value = PROTECT(Rf_ScalarLogical(val));
+    SEXP vec = PROTECT(Rf_allocVector(VECSXP, 2));
+    SET_VECTOR_ELT(vec, 0, value);
+    SET_VECTOR_ELT(vec, 1, size);
+    UNPROTECT(3);
+    return vec;
+  }
+
+  static SEXP Unserialize(SEXP /* class_ */, SEXP state)
+  {
+    Rprintf("Calling unserialize on a compact_repetition\n");
+    int n = Rf_asInteger(VECTOR_ELT(state, 1));
+    Rprintf("n = %d\n", n);
+
+    switch (TYPEOF(VECTOR_ELT(state, 0)))
+    {
+    case INTSXP:
+    {
+      Rprintf("unserialize int\n");
+      auto x = new repetition<int>(n , Rf_asInteger(VECTOR_ELT(state, 0)));
+      return compact_repetition<int>::Make(x, true);
+      break;
+    }
+    case REALSXP:
+    {
+      Rprintf("unserialize dbl\n");
+      auto x = new repetition<double>(n, Rf_asReal(VECTOR_ELT(state, 0)));
+      return compact_repetition<double>::Make(x, true);
+      break;
+    }
+    case LGLSXP:
+    {
+      Rprintf("unserialize bool\n");
+      auto x = new repetition<bool>(n, Rf_asLogical(VECTOR_ELT(state, 0)));
+      return compact_repetition<bool>::Make(x, true);
+      break;
+    }
+    default:
+    {
+      Rf_error("Not supported input SEXP in compact repetition");
+      break;
+    }
+    }
+  }
+
+
+
   // The start of the data, i.e. the underlying string array from the random_string_data
   //
   // This is guaranteed to never allocate (in the R sense)
@@ -318,6 +402,8 @@ struct compact_repetition
     R_set_altvec_Dataptr_method(class_t, DataptrInt);
     R_set_altvec_Dataptr_or_null_method(class_t, Dataptr_or_null);
     R_set_altvec_Extract_subset_method(class_t, extract_subset_int);
+    R_set_altrep_Serialized_state_method(class_t, Serialized_state_int);
+    R_set_altrep_Unserialize_method(class_t, Unserialize);
 
     // altint
     R_set_altinteger_Elt_method(class_t, int_Elt);
@@ -338,6 +424,8 @@ struct compact_repetition
     R_set_altvec_Dataptr_method(class_t, DataptrReal);
     R_set_altvec_Dataptr_or_null_method(class_t, Dataptr_or_null);
     R_set_altvec_Extract_subset_method(class_t, extract_subset_real);
+    R_set_altrep_Serialized_state_method(class_t, Serialized_state_dbl);
+    R_set_altrep_Unserialize_method(class_t, Unserialize);
 
     // altint
     R_set_altreal_Elt_method(class_t, real_Elt);
@@ -358,6 +446,8 @@ struct compact_repetition
     R_set_altvec_Dataptr_method(class_t, DataptrLogical);
     R_set_altvec_Dataptr_or_null_method(class_t, Dataptr_or_null);
     R_set_altvec_Extract_subset_method(class_t, extract_subset_logical);
+    R_set_altrep_Serialized_state_method(class_t, Serialized_state_lgl);
+    R_set_altrep_Unserialize_method(class_t, Unserialize);
 
     // altlgl
     R_set_altlogical_Elt_method(class_t, logical_Elt);
@@ -401,4 +491,16 @@ SEXP R_compact_rep(int n, SEXP v)
       break;
     }
   }
+}
+
+// [[Rcpp::export]]
+bool R_is_altrep(SEXP x)
+{
+  return ALTREP(x);
+}
+
+// [[Rcpp::export]]
+bool R_is_materialized(SEXP x)
+{
+  return DATAPTR_OR_NULL(x) != nullptr;
 }

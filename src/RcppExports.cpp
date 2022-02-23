@@ -22,9 +22,33 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// R_is_altrep
+bool R_is_altrep(SEXP x);
+RcppExport SEXP _altreplicate_R_is_altrep(SEXP xSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type x(xSEXP);
+    rcpp_result_gen = Rcpp::wrap(R_is_altrep(x));
+    return rcpp_result_gen;
+END_RCPP
+}
+// R_is_materialized
+bool R_is_materialized(SEXP x);
+RcppExport SEXP _altreplicate_R_is_materialized(SEXP xSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type x(xSEXP);
+    rcpp_result_gen = Rcpp::wrap(R_is_materialized(x));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_altreplicate_R_compact_rep", (DL_FUNC) &_altreplicate_R_compact_rep, 2},
+    {"_altreplicate_R_is_altrep", (DL_FUNC) &_altreplicate_R_is_altrep, 1},
+    {"_altreplicate_R_is_materialized", (DL_FUNC) &_altreplicate_R_is_materialized, 1},
     {NULL, NULL, 0}
 };
 
