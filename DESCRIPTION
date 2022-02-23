@@ -1,0 +1,13 @@
+Package: altreplicate
+Title: Compact representation of replication
+Version: 0.0.0.9000
+Authors@R: c(person("Jean-Romain", "Roussel", email = "jean-romain.roussel@ulaval.ca", role = c("aut", "cre")))
+Description: An implementation of compact repetition vectors using the ALTREP framework. rep(0, n) allocates n * sizeof(int) bytes. alt_rep(0, n) allocates only two values
+Depends: R (>= 3.5.0)
+License: MIT + file LICENSE
+Encoding: UTF-8
+LinkingTo: 
+    Rcpp (>= 0.12.18.3)
+Imports: 
+    Rcpp
+RoxygenNote: 7.1.2
