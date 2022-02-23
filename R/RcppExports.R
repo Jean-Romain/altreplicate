@@ -5,3 +5,11 @@ R_compact_rep <- function(n, v) {
     .Call(`_altreplicate_R_compact_rep`, n, v)
 }
 
+R_is_altrep <- function(x) {
+    .Call(`_altreplicate_R_is_altrep`, x)
+}
+
+R_is_materialized <- function(x) {
+    .Call(`_altreplicate_R_is_materialized`, x)
+}
+

@@ -7,12 +7,12 @@
 alt_rep(x, times)
 }
 \arguments{
-\item{x}{scalar}
+\item{x}{scalar. Supports double, integer and bool}
 
 \item{times}{an integer giving the umber of times to repeat x}
 }
 \description{
-Compact replication using the ALTREP framework. It create a sequence of n identical values but does
+Compact replication using the ALTREP framework. It creates a sequence of n identical values but does
 not materialize it unless it is necessary.
 }
 \examples{
