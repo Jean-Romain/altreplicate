@@ -4,7 +4,7 @@ Version: 0.0.0.9000
 Authors@R: c(person("Jean-Romain", "Roussel", email = "jean-romain.roussel@ulaval.ca", role = c("aut", "cre")))
 Description: An implementation of compact repetition vectors using the ALTREP framework. rep(x, n) 
     allocates n blocks of memory. alt_rep(0, n) allocates only two values to store the same vector.
-Depends: R (>= 3.5.0)
+Depends: R (>= 3.6.0)
 License: GPL (>= 3)
 Encoding: UTF-8
 LinkingTo: Rcpp (>= 0.12.18.3)
