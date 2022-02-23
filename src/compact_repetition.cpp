@@ -1,22 +1,38 @@
 #include "altrepisode.h"
+#include <type_traits>
 
+template<typename T>
 struct repetition {
   unsigned int size;
-  int value;
-  repetition(int n, int v) : size(n), value(v) {}
+  T value;
+  repetition(int n, T v) : size(n), value(v) {}
 };
 
+static R_altrep_class_t compact_repetition_integer;
+static R_altrep_class_t compact_repetition_real;
+static R_altrep_class_t compact_repetition_logical;
+
+template<typename T>
 struct compact_repetition
 {
-  static R_altrep_class_t class_t;
-
   // constructor function
-  static SEXP Make(repetition* data, bool owner)
+  static SEXP Make(repetition<T>* data, bool owner)
   {
     Rprintf("Making a compact repetition with %d x %d\n", data->value, data->size);
 
+    R_altrep_class_t class_t;
+
     SEXP xp = PROTECT(R_MakeExternalPtr(data, R_NilValue, R_NilValue));
     if (owner) R_RegisterCFinalizerEx(xp, compact_repetition::Finalize, TRUE);
+
+    if (std::is_same<T, int>::value)
+      class_t = compact_repetition_integer;
+
+    if (std::is_same<T, double>::value)
+      class_t = compact_repetition_real;
+
+    if (std::is_same<T, bool>::value)
+      class_t = compact_repetition_logical;
 
     SEXP res = R_new_altrep(class_t, xp, R_NilValue);
     UNPROTECT(1);
@@ -26,16 +42,16 @@ struct compact_repetition
   // finalizer for the external pointer
   static void Finalize(SEXP xp){
     Rprintf("Deleting a compact repetition at %p\n", R_ExternalPtrAddr(xp));
-    delete static_cast<repetition*>(R_ExternalPtrAddr(xp));
+    delete static_cast<repetition<T>*>(R_ExternalPtrAddr(xp));
   }
 
   // get the std::vector<string>* from the altrep object `x`
-  static repetition* Ptr(SEXP x) {
-    return static_cast<repetition*>(R_ExternalPtrAddr(R_altrep_data1(x)));
+  static repetition<T>* Ptr(SEXP x) {
+    return static_cast<repetition<T>*>(R_ExternalPtrAddr(R_altrep_data1(x)));
   }
 
   // same, but as a reference, for convenience
-  static repetition& Get(SEXP vec) {
+  static repetition<T>& Get(SEXP vec) {
     return *Ptr(vec) ;
   }
 
@@ -51,6 +67,14 @@ struct compact_repetition
 
   static SEXP int_Min(SEXP vec, Rboolean writable){
     return Rf_ScalarInteger(Get(vec).value);
+  }
+
+  static SEXP real_Max(SEXP vec, Rboolean writable){
+    return Rf_ScalarReal(Get(vec).value);
+  }
+
+  static SEXP real_Min(SEXP vec, Rboolean writable){
+    return Rf_ScalarReal(Get(vec).value);
   }
 
   // What gets printed when .Internal(inspect()) is used
@@ -72,7 +96,7 @@ struct compact_repetition
   }
 
   // same in this case, writeable is ignored
-  static void* Dataptr(SEXP vec, Rboolean writeable)
+  static void* DataptrInt(SEXP vec, Rboolean writeable)
   {
     SEXP data2 = R_altrep_data2(vec);
     if (data2 != R_NilValue)
@@ -83,12 +107,50 @@ struct compact_repetition
 
     Rprintf("Materializing a compact repetition at %p\n", R_ExternalPtrAddr(vec));
     int n = Length(vec);
-    int v = Get(vec).value;
+    auto v = Get(vec).value;
     SEXP val = PROTECT(Rf_allocVector(INTSXP, n));
-    Rprintf("n = %d, v = %d\n", n, v);
     int *p = INTEGER(val);
     for (int i = 0; i < n; i++) p[i] = v;
-    Rprintf("val[1] = %d\n", INTEGER(val)[0]);
+    R_set_altrep_data2(vec, val);
+    UNPROTECT(1);
+    return STDVEC_DATAPTR(val);
+  }
+
+  static void* DataptrReal(SEXP vec, Rboolean writeable)
+  {
+    SEXP data2 = R_altrep_data2(vec);
+    if (data2 != R_NilValue)
+    {
+      Rprintf("Returning pointer to materialized compact_repetition at %p\n", R_ExternalPtrAddr(vec));
+      return STDVEC_DATAPTR(data2);
+    }
+
+    Rprintf("Materializing a compact repetition at %p\n", R_ExternalPtrAddr(vec));
+    int n = Length(vec);
+    double v = Get(vec).value;
+    SEXP val = PROTECT(Rf_allocVector(REALSXP, n));
+    double *p = REAL(val);
+    for (int i = 0; i < n; i++) p[i] = v;
+    R_set_altrep_data2(vec, val);
+    UNPROTECT(1);
+    return STDVEC_DATAPTR(val);
+  }
+
+  static void* DataptrLogical(SEXP vec, Rboolean writeable)
+  {
+    SEXP data2 = R_altrep_data2(vec);
+    if (data2 != R_NilValue)
+    {
+      Rprintf("Returning pointer to materialized compact_repetition at %p\n", R_ExternalPtrAddr(vec));
+      return STDVEC_DATAPTR(data2);
+    }
+
+    Rprintf("Materializing a compact repetition at %p\n", R_ExternalPtrAddr(vec));
+    int n = Length(vec);
+    bool v = Get(vec).value;
+    SEXP val = PROTECT(Rf_allocVector(LGLSXP, n));
+    int *p = LOGICAL(val);
+    for (int i = 0; i < n; i++) p[i] = v ? TRUE : FALSE;
     R_set_altrep_data2(vec, val);
     UNPROTECT(1);
     return STDVEC_DATAPTR(val);
@@ -104,14 +166,27 @@ struct compact_repetition
     return Get(vec).value;
   }
 
-  static SEXP extract_subset(SEXP x, SEXP indx, SEXP call) {
+  static double real_Elt(SEXP vec, R_xlen_t i) {
+    Rprintf("real_Elt method called at %d \n", i+1);
+    if (i > Length(vec)) { return NA_REAL; }
+    return Get(vec).value;
+  }
+
+  static int logical_Elt(SEXP vec, R_xlen_t i) {
+    Rprintf("logical_Elt method called at %d \n", i+1);
+    if (i > Length(vec)) { return NA_LOGICAL; }
+    return Get(vec).value ? TRUE : FALSE;
+  }
+
+  static SEXP extract_subset_int(SEXP x, SEXP indx, SEXP call)
+  {
     Rprintf("Extracting subset\n");
     if (x == R_NilValue) return x;
 
     int *p = INTEGER(indx);
     R_xlen_t n = XLENGTH(indx);
     R_xlen_t s = Length(x);
-    auto v = Get(x).value;
+    int v = Get(x).value;
 
     bool indx_out_of_bound = false;
     for (int i = 0; i < n; i++)
@@ -140,7 +215,91 @@ struct compact_repetition
     }
     else
     {
-      auto viu = new repetition(n, v);
+      auto viu = new repetition<T>(n, v);
+      return compact_repetition::Make(viu, true);
+    }
+  }
+
+  static SEXP extract_subset_real(SEXP x, SEXP indx, SEXP call)
+  {
+    Rprintf("Extracting subset\n");
+    if (x == R_NilValue) return x;
+
+    int *p = INTEGER(indx);
+    R_xlen_t n = XLENGTH(indx);
+    R_xlen_t s = Length(x);
+    double v = Get(x).value;
+
+    bool indx_out_of_bound = false;
+    for (int i = 0; i < n; i++)
+    {
+      if (p[i] > s || p[i] < 1)
+      {
+        indx_out_of_bound = true;
+        break;
+      }
+    }
+
+    if (indx_out_of_bound)
+    {
+      SEXP out = PROTECT(Rf_allocVector(REALSXP, n));
+      double *pout = REAL(out);
+      p = INTEGER(indx);
+      for (int i = 0; i < n; i++)
+      {
+        if (p[i] <= s && p[i] > 0)
+          pout[i] = v;
+        else
+          pout[i] = NA_REAL;
+      }
+      UNPROTECT(1);
+      return out;
+    }
+    else
+    {
+      auto viu = new repetition<T>(n, v);
+      return compact_repetition::Make(viu, true);
+    }
+  }
+
+  static SEXP extract_subset_logical(SEXP x, SEXP indx, SEXP call)
+  {
+    Rprintf("Extracting subset\n");
+    if (x == R_NilValue) return x;
+
+    int *p = INTEGER(indx);
+    R_xlen_t n = XLENGTH(indx);
+    R_xlen_t s = Length(x);
+    bool v = Get(x).value;
+
+    bool indx_out_of_bound = false;
+    for (int i = 0; i < n; i++)
+    {
+      if (p[i] > s || p[i] < 1)
+      {
+        indx_out_of_bound = true;
+        break;
+      }
+    }
+
+    if (indx_out_of_bound)
+    {
+      SEXP out = PROTECT(Rf_allocVector(LGLSXP, n));
+      int *pout = LOGICAL(out);
+      p = INTEGER(indx);
+      for (int i = 0; i < n; i++)
+      {
+        if (p[i] <= s && p[i] > 0)
+          pout[i] = v ? TRUE: FALSE;
+        else
+          pout[i] = NA_LOGICAL;
+      }
+      UNPROTECT(1);
+      return out;
+    }
+    else
+    {
+      auto viu = new repetition<T>(n, v);
       return compact_repetition::Make(viu, true);
     }
   }
@@ -148,35 +307,98 @@ struct compact_repetition
   // -------- initialize the altrep class with the methods above
   static void InitInt(DllInfo* dll)
   {
-    class_t = R_make_altinteger_class("compact repetition (int)", "altreplicate", dll);
+    R_altrep_class_t class_t = R_make_altinteger_class("compact repetition (int)", "altreplicate", dll);
+    compact_repetition_integer = class_t;
 
     // altrep
     R_set_altrep_Length_method(class_t, Length);
     R_set_altrep_Inspect_method(class_t, Inspect);
 
     // altvec
-    R_set_altvec_Dataptr_method(class_t, Dataptr);
+    R_set_altvec_Dataptr_method(class_t, DataptrInt);
     R_set_altvec_Dataptr_or_null_method(class_t, Dataptr_or_null);
-    R_set_altvec_Extract_subset_method(class_t, extract_subset);
+    R_set_altvec_Extract_subset_method(class_t, extract_subset_int);
 
     // altint
     R_set_altinteger_Elt_method(class_t, int_Elt);
     R_set_altinteger_Min_method(class_t, int_Max);
     R_set_altinteger_Max_method(class_t, int_Min);
   }
-};
 
-R_altrep_class_t compact_repetition::class_t;
+  static void InitReal(DllInfo* dll)
+  {
+    R_altrep_class_t class_t = R_make_altreal_class("compact repetition (double)", "altreplicate", dll);
+    compact_repetition_real = class_t;
+
+    // altrep
+    R_set_altrep_Length_method(class_t, Length);
+    R_set_altrep_Inspect_method(class_t, Inspect);
+
+    // altvec
+    R_set_altvec_Dataptr_method(class_t, DataptrReal);
+    R_set_altvec_Dataptr_or_null_method(class_t, Dataptr_or_null);
+    R_set_altvec_Extract_subset_method(class_t, extract_subset_real);
+
+    // altint
+    R_set_altreal_Elt_method(class_t, real_Elt);
+    R_set_altreal_Min_method(class_t, real_Max);
+    R_set_altreal_Max_method(class_t, real_Min);
+  }
+
+  static void InitLogical(DllInfo* dll)
+  {
+    R_altrep_class_t class_t = R_make_altlogical_class("compact repetition (bool)", "altreplicate", dll);
+    compact_repetition_logical = class_t;
+
+    // altrep
+    R_set_altrep_Length_method(class_t, Length);
+    R_set_altrep_Inspect_method(class_t, Inspect);
+
+    // altvec
+    R_set_altvec_Dataptr_method(class_t, DataptrLogical);
+    R_set_altvec_Dataptr_or_null_method(class_t, Dataptr_or_null);
+    R_set_altvec_Extract_subset_method(class_t, extract_subset_logical);
+
+    // altlgl
+    R_set_altlogical_Elt_method(class_t, logical_Elt);
+  }
+};
 
 // Called when the package is loaded (needs Rcpp 0.12.18.3)
 // [[Rcpp::init]]
 void init_alt_rep(DllInfo* dll){
-  compact_repetition::InitInt(dll);
+  compact_repetition<int>::InitInt(dll);
+  compact_repetition<double>::InitReal(dll);
+  compact_repetition<bool>::InitLogical(dll);
 }
 
 // [[Rcpp::export]]
-SEXP R_compact_rep(int n, int v)
+SEXP R_compact_rep(int n, SEXP v)
 {
-  auto x = new repetition(n, v);
-  return compact_repetition::Make(x, true);
+  switch (TYPEOF(v))
+  {
+    case INTSXP:
+    {
+      auto x = new repetition<int>(n, Rf_asInteger(v));
+      return compact_repetition<int>::Make(x, true);
+      break;
+    }
+    case REALSXP:
+    {
+      auto x = new repetition<double>(n, Rf_asReal(v));
+      return compact_repetition<double>::Make(x, true);
+      break;
+    }
+    case LGLSXP:
+    {
+      auto x = new repetition<bool>(n, Rf_asLogical(v));
+      return compact_repetition<bool>::Make(x, true);
+      break;
+    }
+    default:
+    {
+      Rf_error("Not supported input SEXP in compact repetition");
+      break;
+    }
+  }
 }

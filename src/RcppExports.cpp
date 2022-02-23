@@ -11,13 +11,13 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // R_compact_rep
-SEXP R_compact_rep(int n, int v);
+SEXP R_compact_rep(int n, SEXP v);
 RcppExport SEXP _altreplicate_R_compact_rep(SEXP nSEXP, SEXP vSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< int >::type n(nSEXP);
-    Rcpp::traits::input_parameter< int >::type v(vSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type v(vSEXP);
     rcpp_result_gen = Rcpp::wrap(R_compact_rep(n, v));
     return rcpp_result_gen;
 END_RCPP
